@@ -87,7 +87,7 @@ module Base32768
         raise ArgumentError, "Non-even char count" unless p && q
         
         val = p * DM + q - NBASE
-        if val >= 2 ** BITS
+        if val >= 2 ** BITS || val <= -BITS
           raise ArgumentError, "Invalid byte sequence: \\x%02x\\x%02x" % s.bytes
         end
         
