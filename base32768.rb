@@ -64,32 +64,37 @@ private
 end
 
 module Base32768
+  DM = 181
+  BITS = 15
+  NBASE = DM ** 2 - 2 ** BITS
+  CBASE = 0x100 - DM
+
   def self.encode(input, output)
     reader = BitReader.new(input)
     loop do
-      val, bits = reader.read_bits(15)
+      val, bits = reader.read_bits(BITS)
       encode_integer(val, output) if bits > 0
-      encode_integer(0x7fff + 15 - bits, output) if bits > 0 && bits < 15
-      return if bits < 15
+      encode_integer(bits - BITS, output) if bits > 0 && bits < BITS
+      return if bits < BITS
     end
   end
   
   def self.decode(input, output)
-    writer = BitWriter.new(output, 15)
+    writer = BitWriter.new(output, BITS)
     loop do
       if s = input.read(2)
-        q, p = s.bytes.map { |x| x - 0x4a }
+        q, p = s.bytes.map { |x| x - CBASE }
         raise ArgumentError, "Non-even char count" unless p && q
         
-        val = p * 181 + q
-        if p < 0 || q < 0 || val - 0x7fff > 15
+        val = p * DM + q - NBASE
+        if val >= 2 ** BITS
           raise ArgumentError, "Invalid byte sequence: \\x%02x\\x%02x" % s.bytes
         end
         
-        if val <= 0x7fff
-          writer.write_bits(val, 15)
+        if val >= 0
+          writer.write_bits(val, BITS)
         else
-          writer.flush(val - 0x7fff)
+          writer.flush(-val)
           raise ArgumentError, "Data remaining after padding" if input.read(1)
           return
         end
@@ -101,9 +106,9 @@ module Base32768
   end
   
   def self.encode_integer(val, output)
-    p, q = val.divmod(181)
-    output.write((q + 0x4a).chr)
-    output.write((p + 0x4a).chr)
+    p, q = (val + NBASE).divmod(DM)
+    output.write((q + CBASE).chr)
+    output.write((p + CBASE).chr)
   end
 end
 
@@ -251,55 +256,67 @@ if $0 == __FILE__
     def test_encode_buffer_without_padding
       s = StringIO.new
       Base32768.encode(StringIO.new("\x00".b * 15), s)
-      assert_equal("\x4a".b * 16, s.string.b)
+      assert_equal("\xf9\x4a".b * 8, s.string.b)
     end
     
-    def test_encode_buffer_with_padding
+    def test_encode_buffer_with_padding_1
       s = StringIO.new
       Base32768.encode(StringIO.new("\x00".b * 13), s)
-      assert_equal("\x4a".b * 14 + "\x51\xff".b, s.string.b)
+      assert_equal("\xf9\x4a".b * 7 + "\xf8\x4a".b, s.string.b)
+    end
+
+    def test_encode_buffer_with_padding_15
+      s = StringIO.new
+      Base32768.encode(StringIO.new("\xff\xff".b), s)
+      assert_equal("\xff\xff\xfa\x4a\xeb\x4a".b, s.string.b)
     end
     
     def test_encode_single_byte
       s = StringIO.new
       Base32768.encode(StringIO.new("\xff".b), s)
-      assert_equal("\x94\x4b\x57\xff".b, s.string.b)
+      assert_equal("\x8e\x4c\xf2\x4a".b, s.string.b)
     end
     
     def test_decode_buffer_without_padding
       s = StringIO.new
-      Base32768.decode(StringIO.new("\x4a".b * 16), s)
+      Base32768.decode(StringIO.new("\xf9\x4a".b * 8), s)
       assert_equal("\x00".b * 15, s.string.b)
     end
     
-    def test_decode_buffer_with_padding
+    def test_decode_buffer_with_padding_1
       s = StringIO.new
-      Base32768.decode(StringIO.new("\x4a".b * 14 + "\x51\xff".b), s)
+      Base32768.decode(StringIO.new("\xf9\x4a".b * 7 + "\xf8\x4a".b), s)
       assert_equal("\x00".b * 13, s.string.b)
+    end
+
+    def test_decode_buffer_with_padding_15
+      s = StringIO.new
+      Base32768.decode(StringIO.new("\xff\xff\xfa\x4a\xeb\x4a".b), s)
+      assert_equal("\xff\xff".b, s.string.b)
     end
     
     def test_decode_buffer_with_invalid_sequence
       assert_raises(ArgumentError) do
-        Base32768.decode(StringIO.new("\x49".b * 16), StringIO.new)
+        Base32768.decode(StringIO.new("\x4a".b * 16), StringIO.new)
       end
     end
     
     def test_decode_buffer_with_data_after_padding
       assert_raises(ArgumentError) do
-        Base32768.decode(StringIO.new("\x94\x4b\x57\xff\x4a\x4a".b),
+        Base32768.decode(StringIO.new("\x8e\x4c\xf2\x4a".b * 2),
           StringIO.new)
       end
     end
     
     def test_decode_buffer_with_invalid_padding
       assert_raises(ArgumentError) do
-        Base32768.decode(StringIO.new("\x4a\x4a".b), StringIO.new)
+        Base32768.decode(StringIO.new("\x8e\x4c".b), StringIO.new)
       end
     end
-    
+
     def test_decode_buffer_with_non_even_char_count
       assert_raises(ArgumentError) do
-        Base32768.decode(StringIO.new("\x4a".b), StringIO.new)
+        Base32768.decode(StringIO.new("\xff".b), StringIO.new)
       end
     end
   end
