@@ -99,20 +99,26 @@ module Base32768
     end
   end
 
-  TAB = [[37, -1], [1, 42], [1, 60], [34, 126], [1, 172]]
+  TAB = [      # skip:
+    [0, 37],   #   first 37 chars
+    [43, 1],   #   +
+    [61, 1],   #   =
+    [127, 34], #   DEL, and next 33 chars
+    [173, 1]   #   soft hyphen
+  ]
 
   # Encodes an integer in range (0..181)
   def self.encode_byte(val)
-    TAB.each { |r| val += r[0] if val > r[1] }
+    TAB.each { |r| val += r[1] if val >= r[0] }
     val.chr
   end
 
   def self.decode_byte(val)
     val = val.ord
     TAB.reverse_each do |r|
-      if val > r[0] + r[1]
-        val -= r[0]
-      elsif val > r[1]
+      if val >= r[0] + r[1]
+        val -= r[1]
+      elsif val >= r[0]
         raise ArgumentError, "Invalid byte value: \\x%02x" % val
       end
     end
