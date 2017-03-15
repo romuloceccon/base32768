@@ -4,7 +4,7 @@ class BitReader
     @val = 0
     @cnt = 0
   end
-  
+
   def read_bits(n)
     result = 0
     p = 0
@@ -45,7 +45,7 @@ class BitWriter
     @val = 0
     @cnt = 0
   end
-  
+
   def write_bits(val, n)
     @val = @val | (val << @cnt)
     @cnt += n
@@ -78,7 +78,7 @@ module Base32768
       return if bits < BITS
     end
   end
-  
+
   def self.decode(input, output)
     writer = BitWriter.new(output, BITS)
     loop do
@@ -156,76 +156,76 @@ if $0 == __FILE__
     Base32768.decode(STDIN, STDOUT)
     exit(0)
   end
-  
+
   require 'test/unit'
-  
+
   class BitReaderTest < Test::Unit::TestCase
     def create_bit_reader(str)
       file = StringIO.new(str.b)
       file.rewind
       BitReader.new(file)
     end
-    
+
     def test_read_whole_byte
       br = create_bit_reader("\xc3")
       assert_equal([0xc3, 8], br.read_bits(8))
     end
-    
+
     def test_read_partial_byte
       br = create_bit_reader("\xc3")
       assert_equal([0x03, 4], br.read_bits(4))
     end
-    
+
     def test_read_partial_byte_continuation
       br = create_bit_reader("\xc3")
       br.read_bits(4)
       assert_equal([0x0c, 4], br.read_bits(4))
     end
-    
+
     def test_read_multi_byte
       br = create_bit_reader("\xc3\xd4")
       assert_equal([0x4c3, 12], br.read_bits(12))
     end
-    
+
     def test_read_byte_at_eof
       br = create_bit_reader("\xc3")
       br.read_bits(4)
       assert_equal([0x0c, 4], br.read_bits(8))
     end
-    
+
     def test_read_byte_past_eof
       br = create_bit_reader("\xc3")
       br.read_bits(8)
       assert_equal([0, 0], br.read_bits(8))
     end
   end
-  
+
   class BitWriterTest < Test::Unit::TestCase
     def create_bit_writer(buffer_size)
       s = StringIO.new
       [BitWriter.new(s, buffer_size), s]
     end
-    
+
     def test_write_whole_byte
       bw, s = create_bit_writer(0)
       bw.write_bits(0xc3, 8)
       assert_equal("\xc3".b, s.string.b)
     end
-    
+
     def test_write_partial_byte
       bw, s = create_bit_writer(0)
       bw.write_bits(0x03, 4)
       bw.write_bits(0x0c, 4)
       assert_equal("\xc3".b, s.string.b)
     end
-    
+
     def test_write_second_byte
       bw, s = create_bit_writer(0)
       bw.write_bits(0xc3, 8)
       bw.write_bits(0xd4, 8)
       assert_equal("\xc3\xd4".b, s.string.b)
     end
-    
+
     def test_write_byte_continuation
       bw, s = create_bit_writer(0)
       bw.write_bits(0x03, 4)
@@ -233,13 +233,13 @@ if $0 == __FILE__
       bw.write_bits(0x0d, 4)
       assert_equal("\xc3\xd4".b, s.string.b)
     end
-    
+
     def test_write_multi_byte
       bw, s = create_bit_writer(0)
       bw.write_bits(0xd4c3, 16)
       assert_equal("\xc3\xd4".b, s.string.b)
     end
-    
+
     def test_buffer_bits
       bw, s = create_bit_writer(16)
       bw.write_bits(0x00c3, 23)
@@ -247,21 +247,21 @@ if $0 == __FILE__
       bw.write_bits(0, 1)
       assert_equal("\xc3".b, s.string.b)
     end
-    
+
     def test_flush_buffer
       bw, s = create_bit_writer(16)
       bw.write_bits(0xd4c3, 16)
       bw.flush(0)
       assert_equal("\xc3\xd4".b, s.string.b)
     end
-    
+
     def test_flush_buffer_with_padding
       bw, s = create_bit_writer(16)
       bw.write_bits(0x00c3, 23)
       bw.flush(15)
       assert_equal("\xc3".b, s.string.b)
     end
-    
+
     def test_flush_twice
       bw, s = create_bit_writer(16)
       bw.write_bits(0x00c3, 23)
@@ -269,20 +269,20 @@ if $0 == __FILE__
       assert_equal("\xc3".b, s.string.b)
       assert_raises(ArgumentError) { bw.flush(8) }
     end
-    
+
     def test_flush_with_invalid_padding
       bw, s = create_bit_writer(16)
       bw.write_bits(0x00c3, 23)
       assert_raises(ArgumentError) { bw.flush(14) }
     end
-    
+
     def test_flush_with_big_padding
       bw, s = create_bit_writer(16)
       bw.write_bits(0x00c3, 23)
       assert_raises(ArgumentError) { bw.flush(23) }
     end
   end
-  
+
   class Base32768Test < Test::Unit::TestCase
     def test_encode_byte
       assert_equal('%', Base32768.encode_byte(0))
@@ -343,7 +343,7 @@ if $0 == __FILE__
       Base32768.encode(StringIO.new("\x00".b * 15), s)
       assert_equal("\xf9%".b * 8, s.string.b)
     end
-    
+
     def test_encode_buffer_with_padding_1
       s = StringIO.new
       Base32768.encode(StringIO.new("\x00".b * 13), s)
@@ -355,19 +355,19 @@ if $0 == __FILE__
       Base32768.encode(StringIO.new("\xff\xff".b), s)
       assert_equal("\xff\xff\xfa%\xeb%".b, s.string.b)
     end
-    
+
     def test_encode_single_byte
       s = StringIO.new
       Base32768.encode(StringIO.new("\xff".b), s)
       assert_equal("k'\xf2%".b, s.string.b)
     end
-    
+
     def test_decode_buffer_without_padding
       s = StringIO.new
       Base32768.decode(StringIO.new("\xf9%".b * 8), s)
       assert_equal("\x00".b * 15, s.string.b)
     end
-    
+
     def test_decode_buffer_with_padding_1
       s = StringIO.new
       Base32768.decode(StringIO.new("\xf9%".b * 7 + "\xf8%".b), s)
