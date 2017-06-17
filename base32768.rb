@@ -42,7 +42,7 @@ class BitWriter
 
     @cnt -= pad
     flush_buffer(0)
-    @val = 0
+    raise ArgumentError, "Non-zero padding" if @val != 0
     @cnt = 0
   end
 
@@ -283,6 +283,12 @@ if $0 == __FILE__
       bw, s = create_bit_writer(16)
       bw.write_bits(0x00c3, 23)
       assert_raises(ArgumentError) { bw.flush(23) }
+    end
+
+    def test_flush_with_nonzero_padding
+      bw, s = create_bit_writer(16)
+      bw.write_bits(0x55c3, 23)
+      assert_raises(ArgumentError) { bw.flush(15) }
     end
   end
 

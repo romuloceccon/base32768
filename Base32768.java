@@ -85,7 +85,8 @@ public class Base32768 {
 
       count -= pad;
       flushBuffer(0);
-      value = 0;
+      if (value != 0)
+        throw new IllegalStateException("Non-zero padding");
       count = 0;
     }
 
@@ -367,6 +368,13 @@ public class Base32768 {
       BitWriter bw = new BitWriter(bos, 16);
       bw.writeBits(0x00c3, 23);
       bw.flush(23);
+    }
+
+    @Test(expected=IllegalStateException.class)
+    public void flushWithNonzeroPadding() throws Exception {
+      BitWriter bw = new BitWriter(bos, 16);
+      bw.writeBits(0x55c3, 23);
+      bw.flush(15);
     }
 
     @Test
