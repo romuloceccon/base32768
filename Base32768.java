@@ -78,8 +78,11 @@ public class Base32768 {
     }
 
     public void flush(int pad) throws IOException {
+      if (pad == 0 && count == 0)
+        return;
       if (pad >= count || (count - pad) % 8 != 0)
         throw new IllegalStateException("Bad padding");
+
       count -= pad;
       flushBuffer(0);
       value = 0;
@@ -453,6 +456,16 @@ public class Base32768 {
 
       assertArrayEquals(new byte[] { 107, 39, -14, 37 }, o.toByteArray());
     }
+
+    @Test
+    public void encodeEmptyString() throws Exception {
+      ByteArrayInputStream i = new ByteArrayInputStream(new byte[] {});
+      ByteArrayOutputStream o = new ByteArrayOutputStream();
+
+      encode(i, o);
+
+      assertArrayEquals(new byte[] {}, o.toByteArray());
+    }
   }
 
   public static class DecoderTest {
@@ -574,9 +587,19 @@ public class Base32768 {
 
       decode(i, o);
     }
+
+    @Test
+    public void decodeEmptyString() throws Exception {
+      ByteArrayInputStream i = new ByteArrayInputStream(new byte[] {});
+      ByteArrayOutputStream o = new ByteArrayOutputStream();
+
+      decode(i, o);
+
+      assertArrayEquals(new byte[] {}, o.toByteArray());
+    }
   }
 
-  public static void main(String[] args) {
+  public static void main(String[] args) throws Exception {
     try {
       if (args.length >= 2 && args[1].equals("-e")) {
         Base32768.encode(System.in, System.out);

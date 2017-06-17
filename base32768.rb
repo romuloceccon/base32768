@@ -37,9 +37,9 @@ class BitWriter
   end
 
   def flush(pad)
-    if pad >= @cnt || (@cnt - pad) % 8 != 0
-      raise ArgumentError, "Bad padding"
-    end
+    return if pad == 0 && @cnt == 0
+    raise ArgumentError, "Bad padding" if pad >= @cnt || (@cnt - pad) % 8 != 0
+
     @cnt -= pad
     flush_buffer(0)
     @val = 0
@@ -365,6 +365,12 @@ if $0 == __FILE__
       assert_equal("k'\xf2%".b, s.string.b)
     end
 
+    def test_encode_empty_string
+      s = StringIO.new
+      Base32768.encode(StringIO.new("".b), s)
+      assert_equal("".b, s.string.b)
+    end
+
     def test_decode_buffer_without_padding
       s = StringIO.new
       Base32768.decode(StringIO.new("\xf9%".b * 8), s)
@@ -387,6 +393,12 @@ if $0 == __FILE__
       assert_raises(ArgumentError) do
         Base32768.decode(StringIO.new("k'\xf2%".b * 2), StringIO.new)
       end
+    end
+
+    def test_decode_empty_string
+      s = StringIO.new
+      Base32768.decode(StringIO.new("".b), s)
+      assert_equal("".b, s.string.b)
     end
   end
 end
