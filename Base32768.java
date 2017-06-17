@@ -1,5 +1,3 @@
-package romuloceccon.base32768;
-
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
